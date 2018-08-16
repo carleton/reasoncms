@@ -1529,10 +1529,18 @@ class TableAdmin
 	
 	function run_row_action()
 	{
+		// A group of checkboxes in disco are grouped under the same id. For example checkboxgroup with id 15 will have 15[0], 15[1], etc for individual checkboxes
+		// Here, each checkbox has its own id (e.g. 14 and 16). So the challenge is to map between the two.
 		if ($this->table_row_action == 'view' || $this->table_row_action == 'edit' || $this->table_row_action == 'delete' || $this->table_row_action == 'new' || $this->table_row_action == "download_file")
 		{
+            var_dump($this->admin_form->table_action_id);
 			$form =& $this->get_admin_form();
+			$children = $form->_thor_core->_xml->document->tagChildren;
+			var_dump($children);
+			$data = $this->_build_data();
+			var_dump($data[$this->admin_form->table_action_id]);
 			$form->run();
+			var_dump($this->admin_form->get_element_group_names());
 		}
 	}
 	

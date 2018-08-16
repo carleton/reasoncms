@@ -141,7 +141,7 @@ class EditFieldView extends Backbone.View
       ), 10)
 
     allowTypeChange = Formbuilder.options.ALLOW_TYPE_CHANGE
-    if (@model.attributes.field_type == "submit_button")
+    if (window.dbTableExists || @model.attributes.field_type == "submit_button")
       allowTypeChange = false
     setTimeout((=>
       if (allowTypeChange)
@@ -921,6 +921,7 @@ class Formbuilder
       DEFAULT_VALUE: 'default_value'
       FIELD_TYPE: 'field_type'
       REQUIRED: 'required'
+      DELETED: 'deleted'
       DATE_FIELD_TIME_ENABLED: 'date_field_time_enabled'
       PREFILL_KEY: 'prefill_key'
       ADMIN_ONLY: 'admin_only'
@@ -1139,7 +1140,11 @@ class Formbuilder
     else
       fields = bootstrapData.fields
 
+    h = 0
+    deletedFields = []
     for f,i in fields
+      if (f.deleted)
+        deletedFields.push(h)
       if (!f.cid? or @trackDupes(f.cid))
         # console.log "this toplevel is either missing an id or has a dupe id"
         @elsAndOptsToReId.push "element:" + i
@@ -1155,8 +1160,15 @@ class Formbuilder
             # console.log "this lption either missing an id, or has a dupe id"
             @elsAndOptsToReId.push "option:" + i + "," + k
             @madeInitialIdAdjustments = true;
+      h++
 
     @reassignIdentifiers(fields)
+
+    numRemoved = 0
+    for h in deletedFields
+      fields.splice(h - numRemoved, 1)
+      numRemoved++
+
   # 2014-12-05 fix END
 
     

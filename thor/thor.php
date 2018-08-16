@@ -176,12 +176,17 @@ class ThorCore
 	function append_thor_elements_to_form(&$disco_obj, $include_submit = true)
 	{
 		$xml = $this->get_thor_xml();
-		// echo "<PRE>" . $xml . "</PRE>";
 		if ($xml && $disco_obj)
 		{
 			foreach ($xml->document->tagChildren as $node)
 			{
-				// echo "running on [" . $node->tagName . "]...<br>";
+				// Jan 2018: Added ability to edit forms with data. The formbuilder JS now adds a 'deleted'
+				// attr to fields on save. It sets deleted="true" when a user deletes a field that already has data.
+				// Handle deleted fields at this stage by not adding them to the form
+				if (array_key_exists('deleted', $node->tagAttrs) && $node->tagAttrs['deleted'] === 'true') {
+					continue;
+				}
+
 				if ($node->tagName == 'input') $this->_transform_input($node, $disco_obj);
 				elseif ($node->tagName == 'date') $this->_transform_date($node, $disco_obj);
 				elseif ($node->tagName == 'time') $this->_transform_time($node, $disco_obj);
@@ -345,19 +350,40 @@ class ThorCore
 	 */
 	function insert_values($values, $disco_obj)
 	{
-		if ($this->get_thor_table() && $values)
-		{
+		if ($this->get_thor_table() && $values) {
 			$this->create_table_if_needed(); // create the table if it does not exist
-			if (!isset($values['date_created'])){
+			if (!isset($values['date_created'])) {
 				$values['date_created'] = get_mysql_datetime();
 			}
-			if (!isset($values['date_user_submitted'])){
+			if (!isset($values['date_user_submitted'])) {
 				$values['date_user_submitted'] = get_mysql_datetime();
 			}
 			if (!get_current_db_connection_name()) connectDB($this->get_db_conn());
 			$reconnect_db = (get_current_db_connection_name() != $this->get_db_conn()) ? get_current_db_connection_name() : false;
 			if ($reconnect_db) connectDB($this->get_db_conn());
-  			$GLOBALS['sqler']->mode = 'get_query';
+			$GLOBALS['sqler']->mode = 'get_query';
+
+			$db_structure = $this->_build_db_structure();
+			foreach ($db_structure as $k => $v) {
+				if (!($this->column_exists($k))) {
+					switch ($v['type']) {
+						case 'tinytext':
+							$datatype = 'tinytext';
+							break;
+						case 'dateTimeText':
+							$datatype = 'datetime';
+							break;
+						case 'timeText':
+							$datatype = 'tinytext';
+							break;
+						case 'text':
+							$datatype = 'text';
+							break;
+					}
+					db_query("ALTER TABLE " . $this->get_thor_table() . " ADD COLUMN " . $k . " " . $datatype);
+				}
+			}
+
   			$query = $GLOBALS['sqler']->insert( $this->get_thor_table(), $values );
   			$result = db_query($query);
   			$insert_id = mysql_insert_id();
@@ -445,6 +471,10 @@ class ThorCore
 		foreach ($xml->document->tagChildren as $node)
 		{	
 			if ($node->tagName == 'upload') {
+				// Skip deleted nodes
+				if (array_key_exists('deleted', $node->tagAttrs) && $node->tagAttrs['deleted'] === 'true') {
+					continue;
+				}
 				$col_id = $node->tagAttrs['id'];
 
 				$disco_el = $disco_obj->get_element($col_id);
@@ -1358,8 +1388,10 @@ class ThorCore
 		if (array_key_exists('num_total_available', $element->tagAttrs)) {
 			$numTotalAvailableForEvent = $element->tagAttrs['num_total_available'];
 		}
-		if (array_key_exists('max_per_person', $element->tagAttrs)) {
-			$numMaxPerPersonForEvent = $element->tagAttrs['max_per_person'];
+		// Default to 1 ticket per person
+		$numMaxPerPersonForEvent = 1;
+		if (array_key_exists('max_per_person', $element->tagAttrs) && (int)$element->tagAttrs['max_per_person'] > 0) {
+			$numMaxPerPersonForEvent = (int)$element->tagAttrs['max_per_person'];
 		}
 		if (array_key_exists('event_close_datetime', $element->tagAttrs)) {
 			$closeAfterDatetimeForEvent = $element->tagAttrs['event_close_datetime'];
@@ -1373,11 +1405,6 @@ class ThorCore
 			$numTicketsCurrentlyRemaining = 100000;
 		}
 		
-		// If we don't have as max per person limit, use 1 ticket per person
-		if (intval($numMaxPerPersonForEvent) < 1) {
-			$numMaxPerPersonForEvent = 1;
-		}
-
 		// Generate list of number of tickets a person can select, being sensitive
 		// to the number of tickets still available (except when editing a form submission)
 		$allOptions = array();

@@ -20,6 +20,8 @@ include_once( TYR_INC . 'tyr.php');
 class ThorAdmin extends TableAdmin
 {
 	var $_thor_core;
+	var $_form;
+	var $_user_id;
 		
 	function ThorAdmin()
 	{
@@ -33,6 +35,26 @@ class ThorAdmin extends TableAdmin
 	function &get_thor_core()
 	{
 		return $this->_thor_core;
+	}
+
+	function set_form($form)
+	{
+		$this->_form = $form;
+	}
+
+	function get_form()
+	{
+		return $this->_form;
+	}
+
+	function set_user_id($user)
+	{
+		$this->_user_id = $user;
+	}
+
+	function get_user_id()
+	{
+		return $this->_user_id;
 	}
 	
 	function init_thor_admin($thor_core = '')
@@ -74,6 +96,15 @@ class ThorAdmin extends TableAdmin
 	function _delete_data()
 	{
 		$tc =& $this->get_thor_core();
+		$xml = $this->get_form()->get_value('thor_content');
+		$formElements = simplexml_load_string($xml);
+
+		#https://stackoverflow.com/questions/262351/16062633#16062633
+		foreach($formElements->xpath("//*[@deleted='true']") as $ele) {
+			unset($ele->{0});
+		}
+		$xml = $formElements->asXML();
+		$updateResult = reason_update_entity($this->get_form()->id(), $this->get_user_id(), ['thor_content'=>$xml]);
 		return $tc->delete_table();
 	}
 	

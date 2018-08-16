@@ -780,6 +780,10 @@ class ThorFormModel extends DefaultFormModel
 			$this->_admin_obj = new ThorAdmin();
 			$this->_admin_obj->set_thor_core($thor_core);
 			$this->_admin_obj->set_admin_form($disco_admin_obj);
+			$netid = $this->get_user_netid();
+			$user_id = ($netid) ? get_user_id($netid) : false;
+			$this->_admin_obj->set_user_id($user_id);
+			$this->_admin_obj->set_form($form);
 			
 			// if the user has editing access to the site lets give the same privileges that we give there.
 			if ($this->_user_has_site_editing_access())

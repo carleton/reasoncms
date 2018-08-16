@@ -37,7 +37,7 @@
 			{
 				$this->head_items->add_javascript(JQUERY_UI_URL, true);
 				$this->head_items->add_javascript(JQUERY_URL, true);
-				$this->head_items->add_stylesheet(JQUERY_UI_CSS_URL);        
+				$this->head_items->add_stylesheet(JQUERY_UI_CSS_URL);
 				$this->head_items->add_javascript(REASON_PACKAGE_HTTP_BASE_PATH . 'formbuilder/js/formbuilder_translation.js');
 				$this->head_items->add_javascript(REASON_PACKAGE_HTTP_BASE_PATH . 'formbuilder/js/jquery.formbuilder.js');
 				$this->head_items->add_stylesheet(REASON_PACKAGE_HTTP_BASE_PATH . 'formbuilder/css/jquery.formbuilder.css');
@@ -126,7 +126,7 @@
 			
 			$this->set_element_properties('submission_limit', array('size'=>'4'));
 			// echo "<HR>using thor version...[" . USE_THOR_VERSION . "]<hr>";
-            
+
 			$published = false;
 			$publish_status_text = '';
 			
@@ -178,6 +178,30 @@
 			{
 				$publish_status_text .= '<strong>Status:</strong> Unpublished. <a target="_blank" href="http://reasoncms.org/userdocs/managing-content/other-types/forms/#attaching_a_form_to_a_page">How to publish your form</a>';
 			}
+
+			$form_entity = new entity ($this->admin_page->id);
+			$thor_view_value = $form_entity->get_value('thor_view');
+
+			if ($this->db_table_exists_check()) {
+				if (empty($thor_view_value)) {
+					$form_entity = new entity ($this->admin_page->id);
+					$old_thor_content = $form_entity->get_value('thor_content');
+					$new_thor_content = ($this->get_value('thor_content')) ? $this->get_value('thor_content') : $old_thor_content;
+					if ($new_thor_content != $old_thor_content) {
+						$data_manager_link = unhtmlentities($this->admin_page->make_link(array('cur_module' => 'ThorData')));
+						$this->set_error('thor_content', 'Changes could not be saved because of associated data. You can change the form contents if you first <a href="' . $data_manager_link . '">delete the data</a> associated with the form.');
+						$this->show_error_jumps = false;
+					}
+					$data_manager_link = $this->admin_page->make_link(array('cur_module' => 'ThorData'));
+					$publish_status_text .= '<p><strong>This form has stored data. </strong><a href="' . $data_manager_link . '">Manage stored data</a><br>If you remove a field, the field\'s data will remain available until you delete the stored data for this form. You cannot change the type of existing fields.</p>';
+				}
+
+				$databaseTableExistsJsValue = "true";
+			} else {
+				$databaseTableExistsJsValue = "false";
+			}
+			$databaseTableExistsFlag = '<script type="text/javascript">window.dbTableExists = ' . $databaseTableExistsJsValue . ';</script>';
+			$this->add_element('database_table_exists_flag', 'comment', array('text' => $databaseTableExistsFlag));
 			
 			$this->add_element('publish_status', 'comment', array('text'=>$publish_status_text));
 			
@@ -215,12 +239,12 @@
 			$advanced_option_display_names = array(
 				'thor_view' => 'Choose Thor View:',
 				'is_editable' => 'Are Submissions Editable by the Submitter?',
-			 	'allow_multiple' => 'Allow Multiple Submissions per User?',
-			  	'email_submitter' => 'Email Form Results to Submitter?',
-			  	'include_thank_you_in_email' => 'Include the Thank You message (with html) in email?',
-			  	'email_link' => 'Include Edit Link When Possible?',
-			  	'email_data' => 'Include Submitted Data in E-mails?',
-			  	'email_empty_fields' => 'Include Empty Fields in E-mails?',
+				'allow_multiple' => 'Allow Multiple Submissions per User?',
+				'email_submitter' => 'Email Form Results to Submitter?',
+				'include_thank_you_in_email' => 'Include the Thank You message (with html) in email?',
+				'email_link' => 'Include Edit Link When Possible?',
+				'email_data' => 'Include Submitted Data in E-mails?',
+				'email_empty_fields' => 'Include Empty Fields in E-mails?',
 				'apply_akismet_filter' => 'Apply Akismet Filtering?');
 			if(reason_user_has_privs($this->admin_page->user_id, 'edit_form_advanced_options'))
 			{
@@ -249,6 +273,43 @@
 				}
 			}
 			$this->setup_tableless_element();
+		}
+
+		function run_error_checks_deleted_fields()
+		{
+			$pendingXmlString = $this->get_value('thor_content');
+			$pendingXml = simplexml_load_string($pendingXmlString);
+			$pendingElIds = array();
+			foreach ($pendingXml->children() as $childEl) {
+				$childAttribs = $childEl->attributes();
+				$elId = $childAttribs->id;
+				array_push($pendingElIds, $elId);
+			}
+
+			$dbXmlString = $this->entity->get_value('thor_content');
+			$dbXml = simplexml_load_string($dbXmlString);
+			if ($dbXml != null && $this->db_table_exists_check()) {
+				foreach ($dbXml->children() as $childEl) {
+					$childAttribs = $childEl->attributes();
+					$dbElId = $childAttribs->id;
+					$in_array = false;
+					foreach ($pendingElIds as $pendingElId) {
+						if (((string)$pendingElId) === ((string)$dbElId)) {
+							$in_array = true;
+						}
+					}
+					if (!$in_array) {
+						$domVersionE = dom_import_simplexml($pendingXml);
+						$domVersion = new DOMDocument();
+						$domVersion->appendChild($domVersion->importNode($domVersionE, true));
+						$domNode = dom_import_simplexml($childEl);
+						$domNode->setAttribute('deleted', 'true');
+						$domVersion->documentElement->appendChild($domVersion->importNode($domNode, true));
+						$pendingXml = simplexml_import_dom($domVersion);
+					}
+				}
+				$this->set_value('thor_content', $pendingXml->asXML());
+			}
 		}
 		
 		function pre_error_check_advanced_options()
@@ -319,22 +380,23 @@
 		
 		function pre_error_check_actions()
 		{
-			if ($this->db_table_exists_check())
-			{
+			$form_entity = new entity ($this->admin_page->id);
+			$thor_view_value = $form_entity->get_value('thor_view');
+
+			if ($this->db_table_exists_check() && !empty($thor_view_value)) {
 				$form_entity = new entity ($this->admin_page->id);
-				$old_thor_content = $form_entity->get_value( 'thor_content' );
-				$new_thor_content = ($this->get_value( 'thor_content' )) ? $this->get_value( 'thor_content' ) : $old_thor_content;
-				if ($new_thor_content != $old_thor_content)
-				{
-				$data_manager_link = unhtmlentities($this->admin_page->make_link( array( 'cur_module' => 'ThorData' )));
-						$this->set_error( 'thor_content', 'Changes could not be saved because of associated data. You can change the form contents if you first <a href="'.$data_manager_link.'">delete the data</a> associated with the form.');
-						$this->show_error_jumps = false;
+				$old_thor_content = $form_entity->get_value('thor_content');
+				$new_thor_content = ($this->get_value('thor_content')) ? $this->get_value('thor_content') : $old_thor_content;
+				if ($new_thor_content != $old_thor_content) {
+					$data_manager_link = unhtmlentities($this->admin_page->make_link(array('cur_module' => 'ThorData')));
+					$this->set_error('thor_content', 'Changes could not be saved because of associated data. You can change the form contents if you first <a href="' . $data_manager_link . '">delete the data</a> associated with the form.');
+					$this->show_error_jumps = false;
 				}
 				$this->remove_element('thor_content');
-				$data_manager_link = $this->admin_page->make_link( array( 'cur_module' => 'ThorData' ));
-				$data_comment= '<div id="manageDataNote"><p><strong>This form has stored data. </strong><a href="'.$data_manager_link.'">Manage stored data</a></p>';
-				$data_comment.='<p>To edit this form, you will first need to delete the stored data.</p></div>';	
-				$this->change_element_type('thor_comment','comment',array('text'=>$data_comment));	
+				$data_manager_link = $this->admin_page->make_link(array('cur_module' => 'ThorData'));
+				$data_comment = '<div id="manageDataNote"><p><strong>This form has stored data, and has custom form logic installed. </strong><a href="' . $data_manager_link . '">Manage stored data</a></p>';
+				$data_comment .= '<p>To edit this form, you will first need to delete the stored data.</p></div>';
+				$this->change_element_type('thor_comment', 'comment', array('text' => $data_comment));
 			}
 			$this->pre_error_check_advanced_options();
 		}
@@ -386,6 +448,12 @@
 			{
 				$this->set_error('submission_limit','You have set a submission limit, but this form is not saving data to a database. Please enable the database option or remove the submission limit.');
 			}
+
+			$form_entity = new entity ($this->admin_page->id);
+			$thor_view_value = $form_entity->get_value('thor_view');
+
+			if (empty($thor_view_value))
+				$this->run_error_checks_deleted_fields();
 			$this->run_error_checks_advanced_options();
 			$this->run_error_checks_event_tickets();
 		}
@@ -523,6 +591,15 @@
 					if (empty($emailNode)) {
 						$this->set_error('thor_content', "An event ticket form requires a short text input with the exact label 'Your Email'. Please add that element or change the email field label to 'Your Email'.");
 					}
+					$eventTickets = $xml->xpath("/*/event_tickets");
+					for ($i = 0; $i < sizeof($eventTickets); $i++) {
+                        $eventTicketsClose = $eventTickets[$i]['event_close_datetime'];
+                        try {
+                            new Datetime($eventTicketsClose);
+                        } catch (Exception $e) {
+                            $this->set_error('thor_content', "Invalid datetime cutoff entered in event registration formbuilder: $eventTicketsClose");
+                        }
+					}
 				}
 			} catch (Exception $exc) {
 				trigger_error($exc->getTraceAsString());
@@ -603,12 +680,11 @@
 			$table = $this->form_prefix . $this->admin_page->id;
 			// connect with thor database defined in settings.php3
 			connectDB(THOR_FORM_DB_CONN);
-			$q = 'check table ' . $table . ' fast quick' or trigger_error( 'Error: mysql error in Thor: '.mysql_error() );
-  			$res = mysql_query($q);
-  			$results = mysql_fetch_assoc($res);
-  			if (strstr($results['Msg_text'],"doesn't exist") ) $ret = false;
-  			else 
-			{
+			$q = 'check table ' . $table . ' fast quick' or trigger_error('Error: mysql error in Thor: ' . mysql_error());
+			$res = mysql_query($q);
+			$results = mysql_fetch_assoc($res);
+			if (strstr($results['Msg_text'], "doesn't exist")) $ret = false;
+			else {
 				$ret = true;
 				$this->type = 'db';
 			}
@@ -619,18 +695,17 @@
 		function ensure_temp_db_table_exists()
 		{
 			connectDB(THOR_FORM_DB_CONN);
-                        $q = 'check table thor fast quick' or trigger_error( 'Error: mysql error in Thor: '.mysql_error() );
-                        $res = mysql_query($q);
-                        $results = mysql_fetch_assoc($res);
-                        if (strstr($results['Msg_text'],"doesn't exist") )
-			{
+			$q = 'check table thor fast quick' or trigger_error('Error: mysql error in Thor: ' . mysql_error());
+			$res = mysql_query($q);
+			$results = mysql_fetch_assoc($res);
+			if (strstr($results['Msg_text'], "doesn't exist")) {
 				// create table thor
 				$q = 'create table thor	(
 					id int(10) NOT NULL auto_increment,
 					content text NULL, PRIMARY KEY (id))';
-				$res = db_query($q, 'could not create thor temporary data storage using db connection '.THOR_FORM_DB_CONN);			
+				$res = db_query($q, 'could not create thor temporary data storage using db connection ' . THOR_FORM_DB_CONN);
 			}
-                        connectDB(REASON_DB);
+			connectDB(REASON_DB);
 		}
 	}
 

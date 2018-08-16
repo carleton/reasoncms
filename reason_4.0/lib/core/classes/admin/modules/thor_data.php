@@ -78,6 +78,8 @@
 					$this->_thor_admin = new ThorAdmin();
 					$this->_thor_admin->set_thor_core($tc);
 					$this->_thor_admin->set_admin_form($af);
+                    $this->_thor_admin->set_form($form);
+                    $this->_thor_admin->set_user_id($this->admin_page->user_id);
 				}
 				else $this->_thor_admin = false;
 			}
