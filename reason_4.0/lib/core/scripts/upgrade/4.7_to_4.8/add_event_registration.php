@@ -218,7 +218,8 @@ Download a backup below, and make sure you have a recent Reason database snapsho
 
 	public function getEventsWithSlots($startDateForSQL = "NOW()")
 	{
-		$type_exists = !empty(id_of("registration_slot_type"));
+		$id = id_of("registration_slot_type");
+		$type_exists = !empty($id);
 		if (!$type_exists) {
 			return [];
 		}
@@ -237,7 +238,8 @@ Download a backup below, and make sure you have a recent Reason database snapsho
 	 */
 	public function getExistingSlotReport()
 	{
-		$type_exists = !empty(id_of("registration_slot_type"));
+		$id = id_of("registration_slot_type");
+		$type_exists = !empty($id);
 		if (!$type_exists) {
 			return [];
 		}
