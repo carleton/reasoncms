@@ -167,14 +167,14 @@ class ExportXMLWriter extends XMLWriter
 			if (is_numeric($v)) {
 				$this->text($v);
 			} else {
-				$entitied = htmlentities($v, ENT_QUOTES, 'utf-8');
-				$this->writeCdata($entitied);
+				// Convert to UTF-8, if needed
+				$detected = mb_detect_encoding($v, 'UTF-8, ISO-8859-1', true);
+				if ($detected) {
+					$v = mb_convert_encoding($v, 'UTF-8', $detected);
+				}
+				$this->text($v);
 			}
 		}
-	}
-
-	public function addCdataText($value) {
-		$this->writeCdata($value);
 	}
 
 	public function formatAndFinish($site, $type)
@@ -189,7 +189,7 @@ class ExportXMLWriter extends XMLWriter
 		if ($dom->loadXML($string)) {
 			return $dom->saveXML();
 		} else {
-			throw new Exception("Couldn not format XML for type '{$type}' in site '{$site}'");
+			throw new Exception("Could not format XML for type '{$type}' in site '{$site}'");
 		}
 	}
 }
