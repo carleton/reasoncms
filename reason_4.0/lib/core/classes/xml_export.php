@@ -172,6 +172,11 @@ class ExportXMLWriter extends XMLWriter
 				if ($detected) {
 					$v = mb_convert_encoding($v, 'UTF-8', $detected);
 				}
+				// XmlWriter::text encodes some number of characters to ensure valid XML
+				// It's not exactly the same as this:
+				// $this->writeRaw(htmlspecialchars($v, ENT_QUOTES | ENT_XML1, 'UTF-8'));
+				// but it's close: see comments https://www.php.net/manual/en/function.xmlwriter-text.php
+				// and appears to sufficiently encode html chatacters 
 				$this->text($v);
 			}
 		}
@@ -182,6 +187,10 @@ class ExportXMLWriter extends XMLWriter
 		$this->endDocument();
 		$string = $this->outputMemory();
 
+		// Validate and format the output.
+		// Note: this seems to decode certain entities (like &quot; goes back to ")
+		// The impact of the decoding is unclear, as returned XML is still valid
+		// and HTML decoding a value produces valid html (AFAICT)
 		$dom = new DOMDocument('1.0', 'UTF-8');
 		$dom->preserveWhiteSpace = false;
 		$dom->formatOutput = true;
