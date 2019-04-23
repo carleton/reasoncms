@@ -878,7 +878,7 @@ class MinisiteTemplate
 						// dh - I really want to get rid of this.  For now, it stays.  However, I'm adding a number
 						// of other parameters that a module will take by default so that we can rely on some important
 						// data coming in.  9/15/04
-						
+
 						// tfeiler: as of 2016-03-04, parent is in use by at least one
 						// module-- the "module_group" module uses it to get at the "clean_external_vars" function.
 						$args[ 'parent' ] =& $this; // pass this object to the module
@@ -1518,7 +1518,7 @@ class MinisiteTemplate
 
 	function show_main_content_tabled() // {{{
 	{
-		if ($this->has_content( 'main_head' ) || $this->has_content( 'main' ) || $this->has_content( 'main_post' ) || $this->has_content( 'main_post_2' ) || $this->has_content( 'main_post_3') || $this->has_content( 'main_post_4') || $this->has_content( 'main_post_5') ) 
+		if ($this->has_content( 'main_head' ) || $this->has_content( 'main' ) || $this->has_content( 'main_post' ) || $this->has_content( 'main_post_2' ) || $this->has_content( 'main_post_3') || $this->has_content( 'main_post_4') || $this->has_content( 'main_post_5') )
 		{
 			echo '<td valign="top" class="contentTD">'."\n";
 			echo '<div class="content"><a name="content"></a>'."\n";
@@ -1559,13 +1559,13 @@ class MinisiteTemplate
 			$this->run_section( 'main_post_3' );
 			echo '</div>'."\n";
 		}
-		if ($this->has_content( 'main_post_4' )) 
+		if ($this->has_content( 'main_post_4' ))
 		{
 			echo '<div class="contentPost4">'."\n";
 			$this->run_section( 'main_post_4' );
 			echo '</div>'."\n";
 		}
-		if ($this->has_content( 'main_post_5' )) 
+		if ($this->has_content( 'main_post_5' ))
 		{
 			echo '<div class="contentPost5">'."\n";
 			$this->run_section( 'main_post_5' );
@@ -1824,19 +1824,33 @@ class MinisiteTemplate
 	}
 	function get_parent_sites()
 	{
-		if(!$this->queried_for_parent_sites)
-		{
+		if ( ! $this->queried_for_parent_sites ) {
 			$es = new entity_selector();
-			$es->add_type(id_of('site'));
+			$es->add_type( id_of( 'site' ) );
 			$es->add_right_relationship( $this->site_id, relationship_id_of( 'parent_site' ) );
 			$es->set_order( 'entity.name' );
-			if($this->site_info->get_value('site_state') == 'Live')
-			{
-				$es->add_relation('site_state = "Live"');
+			if ( $this->site_info->get_value( 'site_state' ) == 'Live' ) {
+				$es->add_relation( 'site_state = "Live"' );
 			}
-			$this->parent_sites = $es->run_one();
+			$reason_parent_sites = $es->run_one();
+
+			$es2 = new entity_selector();
+			$es2->add_type( id_of( 'non_reason_site_type' ) );
+			$es2->add_right_relationship( $this->site_id, relationship_id_of( 'non_reason_parent_site' ) );
+			$es2->set_order( 'entity.name' );
+			if ( $this->site_info->get_value( 'site_state' ) == 'Live' ) {
+				$es2->add_relation( 'site_state = "Live"' );
+			}
+			$non_reason_parent_sites = $es2->run_one();
+
+			$all_parent_sites = array_merge( $reason_parent_sites, $non_reason_parent_sites );
+			usort( $all_parent_sites, function ( $a, $b ) {
+				return $a->get_value( 'name' ) > $b->get_value( 'name' );
+			} );
+			$this->parent_sites             = $all_parent_sites;
 			$this->queried_for_parent_sites = true;
 		}
+
 		return $this->parent_sites;
 	}
 
