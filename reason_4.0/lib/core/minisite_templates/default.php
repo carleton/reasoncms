@@ -167,7 +167,7 @@ class MinisiteTemplate
 	 * @var object
 	 * @access private
 	 */
-	 var $_crumbs;
+	var $_crumbs;
 	/**
 	 * @deprecated
 	 * @access private
@@ -650,17 +650,17 @@ class MinisiteTemplate
 		}
 
 		if ( !in_array('keywords',$tags_added)
-			&& $this->pages->root_node() == $this->page_id
-			&& REASON_SHOW_META_KEYWORDS )
+		     && $this->pages->root_node() == $this->page_id
+		     && REASON_SHOW_META_KEYWORDS )
 		{
 			$content = reason_htmlspecialchars( $this->site_info->get_value( 'keywords' ) );
 			$this->head_items->add_head_item('meta',array('name'=>'keywords','content'=>$content) );
 		}
 
 		if (!empty( $_REQUEST['no_search'] )
-			|| $this->site_info->get_value('site_state') != 'Live'
-			|| ( defined('THIS_IS_A_DEVELOPMENT_REASON_INSTANCE') && THIS_IS_A_DEVELOPMENT_REASON_INSTANCE )
-			|| !$this->cur_page->get_value('indexable'))
+		    || $this->site_info->get_value('site_state') != 'Live'
+		    || ( defined('THIS_IS_A_DEVELOPMENT_REASON_INSTANCE') && THIS_IS_A_DEVELOPMENT_REASON_INSTANCE )
+		    || !$this->cur_page->get_value('indexable'))
 		{
 			$this->head_items->add_head_item('meta',array('name'=>'robots','content'=>'none' ) );
 		}
@@ -741,15 +741,15 @@ class MinisiteTemplate
 	}
 
 	function change_module( $page_type, $section, $new_module ) // {{{
-	// allows runtime modification of module to use for a given
-	// type-section pair.
+		// allows runtime modification of module to use for a given
+		// type-section pair.
 	{
 		if( $page_type == $this->cur_page->get_value( 'custom_page' ) )
 			$this->section_to_module[ $section ] = $new_module;
 	} // }}}
 	function change_module_global( $section, $new_module ) // {{{
-	// allows runtime modification of module regardless of page type
-	// useful for changing the navigation section globally.
+		// allows runtime modification of module regardless of page type
+		// useful for changing the navigation section globally.
 	{
 		$this->section_to_module[ $section ] = $new_module;
 	} // }}}
@@ -813,7 +813,7 @@ class MinisiteTemplate
 	}
 
 	function additional_args( &$args ) // {{{
-	//if a module needs additional args
+		//if a module needs additional args
 	{
 	} // }}}
 
@@ -956,17 +956,17 @@ class MinisiteTemplate
 
 	} // }}}
 	function clean_vars( &$vars, $rules ) // {{{
-	// Returns an array which takes the values of the keys in Vars of
-	// the keys set in Settings, and runs the cleaning function
-	// specified in the value of settings
+		// Returns an array which takes the values of the keys in Vars of
+		// the keys set in Settings, and runs the cleaning function
+		// specified in the value of settings
 	{
 		return carl_clean_vars( $vars, $rules );
 	} // }}}
 
 	function clean_external_vars($rules)
-	// Cleanup rules can include a 'method'
-	// parameter which indicates where the value should come from -- options are get, post, and
-	// nothing/anything else, which means the $_REQUEST array.
+		// Cleanup rules can include a 'method'
+		// parameter which indicates where the value should come from -- options are get, post, and
+		// nothing/anything else, which means the $_REQUEST array.
 	{
 		$request = $cleanup_params = array();
 		$prepped_request = conditional_stripslashes($_REQUEST);
@@ -1100,7 +1100,7 @@ class MinisiteTemplate
 
 	function get_doctype()
 	{
-		 return $this->doctype;
+		return $this->doctype;
 	}
 
 	function is_minisite_home_page ()
@@ -1732,7 +1732,7 @@ class MinisiteTemplate
 	}
 
 	/*this stuff comes from the tableless template. from here... */
-		function has_content_section()
+	function has_content_section()
 	{
 		if($this->has_content( 'main_head' ) || $this->has_content( 'main' ) || $this->has_content( 'main_post' ) || $this->has_content( 'main_post_2' ) || $this->has_content( 'main_post_3' ) || $this->has_content( 'main_post_4' ) || $this->has_content( 'main_post_5' ) )
 		{
@@ -1824,31 +1824,19 @@ class MinisiteTemplate
 	}
 	function get_parent_sites()
 	{
-		if ( ! $this->queried_for_parent_sites ) {
+		if(!$this->queried_for_parent_sites)
+		{
 			$es = new entity_selector();
-			$es->add_type( id_of( 'site' ) );
+			$es->add_type(id_of('site'));
 			$es->add_right_relationship( $this->site_id, relationship_id_of( 'parent_site' ) );
-			if ( $this->site_info->get_value( 'site_state' ) == 'Live' ) {
-				$es->add_relation( 'site_state = "Live"' );
+			$es->set_order( 'entity.name' );
+			if($this->site_info->get_value('site_state') == 'Live')
+			{
+				$es->add_relation('site_state = "Live"');
 			}
-			$reason_parent_sites = $es->run_one();
-
-			$es2 = new entity_selector();
-			$es2->add_type( id_of( 'non_reason_site_type' ) );
-			$es2->add_right_relationship( $this->site_id, relationship_id_of( 'non_reason_parent_site' ) );
-			if ( $this->site_info->get_value( 'site_state' ) == 'Live' ) {
-				$es2->add_relation( 'site_state = "Live"' );
-			}
-			$non_reason_parent_sites = $es2->run_one();
-
-			$all_parent_sites = array_merge( $reason_parent_sites, $non_reason_parent_sites );
-			usort( $all_parent_sites, function ( $a, $b ) {
-				return $a->get_value( 'name' ) > $b->get_value( 'name' );
-			} );
-			$this->parent_sites             = $all_parent_sites;
+			$this->parent_sites = $es->run_one();
 			$this->queried_for_parent_sites = true;
 		}
-
 		return $this->parent_sites;
 	}
 
