@@ -1828,7 +1828,6 @@ class MinisiteTemplate
 			$es = new entity_selector();
 			$es->add_type( id_of( 'site' ) );
 			$es->add_right_relationship( $this->site_id, relationship_id_of( 'parent_site' ) );
-			$es->set_order( 'entity.name' );
 			if ( $this->site_info->get_value( 'site_state' ) == 'Live' ) {
 				$es->add_relation( 'site_state = "Live"' );
 			}
@@ -1837,7 +1836,6 @@ class MinisiteTemplate
 			$es2 = new entity_selector();
 			$es2->add_type( id_of( 'non_reason_site_type' ) );
 			$es2->add_right_relationship( $this->site_id, relationship_id_of( 'non_reason_parent_site' ) );
-			$es2->set_order( 'entity.name' );
 			if ( $this->site_info->get_value( 'site_state' ) == 'Live' ) {
 				$es2->add_relation( 'site_state = "Live"' );
 			}
