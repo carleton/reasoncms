@@ -360,6 +360,9 @@
 					
 					$date = '';
 					
+					// Do we need to reorient based on exif flag?
+					$needs_reorienting = false;
+					
 					// get suffix
 					$type = strtolower( substr($cur_name,strrpos($cur_name,'.')+1) );
 					$ok_types = array('jpg');
@@ -382,11 +385,23 @@
 									break;
 								}
 							}
+							
+							// Check orientation
+							if (!empty($exif_data['Orientation'])) {
+								if (1 != $exif_data['Orientation']) {
+									$needs_reorienting = true;
+								}
+							}
 						}
 					}
 					else
 					{
 						$date = $this->get_value( 'datetime' );
+						
+						// Maybe we couldn't read exif data in PHP, but imagemagick can 
+						if (in_array($type, $ok_types)) {
+							$needs_reorienting = true;
+						}
 					}
 					
 					$keywords = $entry;
@@ -437,7 +452,6 @@
 						if($page_id)
 							create_relationship($page_id, $id, relationship_id_of('minisite_page_to_image'), array('rel_sort_order'=>$sort_order_value) );
 						
-						
 						// resize and move photos
 						$new_name = PHOTOSTOCK.$id.'.'.$type;
 						$orig_name = PHOTOSTOCK.$id.'_orig.'.$type;
@@ -456,6 +470,11 @@
 						else
 						{
 							copy( $cur_name, $new_name );
+						}
+						
+						// Reorient if needed
+						if ($needs_reorienting) {
+							auto_orient_image($new_name);
 						}
 						
 						// create a thumbnail if need be

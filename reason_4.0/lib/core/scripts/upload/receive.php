@@ -130,6 +130,32 @@ foreach (array_keys($_FILES) as $name) {
 			responseWrapper(501, 'Unable to convert the uploaded file to a web-friendly image');
 		}
 	}
+	
+	// Read EXIF data to see if we can/should reorient
+	$needs_reorienting = false;
+	if (2 == $file_type) {
+		if (function_exists('read_exif_data')) {
+			$exif_data = @read_exif_data($temp_path);
+			if ($exif_data && !empty($exif_data['Orientation'])) {
+				if (1 != $exif_data['Orientation']) {
+					$needs_reorienting = true;
+				}
+			}
+		} else {
+			// If we can't check read the exif data, assume we need to reorient. 
+			$needs_reorienting = true;
+		}
+	}
+	
+	// Reorient if necessary
+	if ($needs_reorienting) {
+		if (auto_orient_image($temp_path)) {
+			list($width, $height) = getimagesize($temp_path);
+			clearstatcache();
+			$filesize = filesize($temp_path);
+		}
+	}
+	
 	if ($img_info)
 	{
 		// fix a permission idiosyncrasy so the permissions are consistent
@@ -169,7 +195,6 @@ foreach (array_keys($_FILES) as $name) {
 				}
 			}
 		}
-
 	}
 
 	/* 

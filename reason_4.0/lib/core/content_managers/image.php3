@@ -103,6 +103,7 @@
 			));
 			
 			$image = $this->get_element('image');
+			
 			$image->get_head_items($this->head_items);
 			$this->add_element('default_thumbnail', 'checkbox_no_label', 
 					array('description' => 'Generate thumbnail from full-size image'));

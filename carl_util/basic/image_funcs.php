@@ -55,6 +55,39 @@ function resize_image($path, $width, $height, $sharpen=true)
 }
 
 /**
+ * Auto orient an image based on EXIF orientation flag, and set the flag to 1 (defualt).
+ * 
+ * The image will be rotated in place; to avoid this, make a {@link copy} of
+ * the original image first, and auto-orient the copy. 
+ *
+ * Raises a {@link WARNING} if imagemagick is not available.
+ * 
+ * @param string $path filesystem path to the image to be auto-oriented
+ * @return boolean true if the image was auto-oriented successfully; false if not
+ */
+function auto_orient_image($path) {
+    if (!is_file($path) || !is_readable($path)) {
+        trigger_error('cannot auto orient image; no file exists at the given path '.
+            '('.var_export($path, true).')', WARNING);
+        return false;
+    }
+    
+    $perms = substr(sprintf('%o', fileperms($path)), -4);
+    if (imagemagick_available()) {
+        $result = _imagemagick_auto_orient($path);
+    } else {
+	    trigger_error('ImageMagick is not available; cannot auto-orient image', WARNING);
+        return false;
+    }
+
+    // Prevent the transformation from changing the file permissions.
+    clearstatcache();
+    $newperms = substr(sprintf('%o', fileperms($path)), -4);
+    if ($perms != $newperms) @chmod($path, octdec($perms));
+    return $result;
+}
+
+/**
  * Convert some file to an image - places the file in the same place. 
  * Right now just png is supported - other formats could be.
  * 
@@ -1057,6 +1090,36 @@ function _gd_resize($path, $width, $height, $sharpen)
 }
 
 /**
+ * @access private
+ */
+function _imagemagick_auto_orient($path) {
+	if (defined('IMAGEMAGICK_PATH')) {
+		$exec = (substr(IMAGEMAGICK_PATH, -1) == DIRECTORY_SEPARATOR)
+			? IMAGEMAGICK_PATH.'mogrify'
+			: IMAGEMAGICK_PATH.DIRECTORY_SEPARATOR."mogrify";
+	} else {
+		$exec = "mogrify";
+	}
+	
+	$args = array(
+		$exec,
+		'-auto-orient',
+	);
+	$args[] = escapeshellarg($path);
+	
+	$output = array();
+	$exit_status = -1;
+	exec(implode(' ', $args), $output, $exit_status);
+	if ($exit_status != 0) {
+		trigger_error('image auto orient failed: '.implode('; ', $output), WARNING);
+		error_log(implode(' ', $args));
+		return false;
+	}
+	
+	return true;
+}
+
+/**
  * Gets the components of an RGB color.
  * @param int $color an RGB color
  * @return array [red, green, blue]
@@ -1068,6 +1131,8 @@ function get_color_components($color)
     $blue = ($color & 0xFF);
     return array($red, $green, $blue);
 }
+
+
 
 
 /**
